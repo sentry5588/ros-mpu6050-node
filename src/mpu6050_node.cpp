@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, "mpu6050");
   ros::NodeHandle node;
   ros::Publisher pub = node.advertise<sensor_msgs::Imu>("imu", 10);
-  ros::Rate rate(10);  // hz
+  ros::Rate rate(50);  // hz
 
   // Publish in loop.
   while(ros::ok()) {
@@ -40,14 +40,15 @@ int main(int argc, char **argv) {
 
     // Read gyroscope values.
     // At default sensitivity of 250deg/s we need to scale by 131.
-    msg.angular_velocity.x = read_word_2c(fd, 0x43) / 131;
-    msg.angular_velocity.y = read_word_2c(fd, 0x45) / 131;
-    msg.angular_velocity.z = read_word_2c(fd, 0x47) / 131;
+    double scale_ang_vel = 7505.75;
+    msg.angular_velocity.x = read_word_2c(fd, 0x43) / scale_ang_vel;
+    msg.angular_velocity.y = read_word_2c(fd, 0x45) / scale_ang_vel - 0.00977; // the rad/s bias is 0.009 rad/s
+    msg.angular_velocity.z = read_word_2c(fd, 0x47) / scale_ang_vel;
 
     // Read accelerometer values.
     // At default sensitivity of 2g we need to scale by 16384.
     // Note: at "level" x = y = 0 but z = 1 (i.e. gravity)
-    // But! Imu msg docs say acceleration should be in m/2 so need to *9.807
+    // But! Imu msg docs say acceleration should be in m/s2 so need to *9.807
     const float la_rescale = 16384.0 / 9.807;
     msg.linear_acceleration.x = read_word_2c(fd, 0x3b) / la_rescale;
     msg.linear_acceleration.y = read_word_2c(fd, 0x3d) / la_rescale;
