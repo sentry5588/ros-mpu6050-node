@@ -1,8 +1,8 @@
 
 <launch>
 
-  <rosparam command="load" file="$(find mpu6050)/params/mpu6050_calibration.yaml" />
+  <rosparam command="load" file="$(find state_estimation)/params/mpu6050_calibration.yaml" />
 
-  <node pkg="mpu6050" type="mpu6050_node" name="mpu6050_comp_filter" clear_params="true" output="screen"/>
+  <node pkg="state_estimation" type="mpu6050_node" name="mpu6050_comp_filter" clear_params="true" output="screen"/>
 
 </launch>
