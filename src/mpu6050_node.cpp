@@ -1,9 +1,8 @@
 #include <ros/ros.h>
 #include <sensor_msgs/Imu.h>
+#include <std_msgs/Float32.h>
 #include <wiringPi.h>
 #include <wiringPiI2C.h>
-
-using namespace std;
 
 const int I2C_ADDR = 0x68;
 const int PWR_MGMT_1 = 0x6B;
@@ -45,11 +44,23 @@ void calibrate_imu(sensor_msgs::Imu &m)
   m.angular_velocity.y = m.angular_velocity.y - Y_ANGULAR_BIAS;
 }
 
+void pitch_complementary_filter(const sensor_msgs::Imu& msg, double& pitch_angle)
+{
+  double p_accel = 0.0, dp_gyro = 0.0, dT = 0.02;
+  double alpha = 0.98; // To tune
+  p_accel = atan2(msg.linear_acceleration.z, msg.linear_acceleration.x) - 0.205; // radian
+  dp_gyro = msg.angular_velocity.y;
+
+  // Implement the complementary filter logic
+  pitch_angle = (1-alpha) * p_accel + alpha * (pitch_angle + dp_gyro * dT);
+}
+
 int main(int argc, char **argv)
 {
 
   // Connect to device.
   int fd = wiringPiI2CSetup(I2C_ADDR);
+  double pitch_angle_comp_filtered = 0.0;
   if (fd == -1)
   {
     printf("no i2c device found?\n");
@@ -61,7 +72,7 @@ int main(int argc, char **argv)
   // Start ROS node stuff.
   ros::init(argc, argv, "mpu6050_node");
   ros::NodeHandle node;
-  ros::Publisher pub = node.advertise<sensor_msgs::Imu>("imu", 10);
+  ros::Publisher pitch_angle_pub = node.advertise<std_msgs::Float32>("pitch_angle", 10);
   ros::Rate rate(50); // hz
 
   obtain_sensor_calibrations(node);
@@ -69,15 +80,16 @@ int main(int argc, char **argv)
   // Publish in loop.
   while (ros::ok())
   {
-    sensor_msgs::Imu msg;
-    msg.header.stamp = ros::Time::now();
-    msg.header.frame_id = '0'; // no frame
+    sensor_msgs::Imu imu_msg;
 
-    populate_raw_imu(msg, fd);
-    calibrate_imu(msg);
+    populate_raw_imu(imu_msg, fd);
+    calibrate_imu(imu_msg);
+    pitch_complementary_filter(imu_msg, pitch_angle_comp_filtered);
 
     // Pub & sleep.
-    pub.publish(msg);
+    std_msgs::Float32 pitch_angle_msg;
+    pitch_angle_msg.data = pitch_angle_comp_filtered;
+    pitch_angle_pub.publish(pitch_angle_msg);
     ros::spinOnce();
     rate.sleep();
   }
