@@ -48,7 +48,7 @@ void pitch_complementary_filter(const sensor_msgs::Imu& msg, double& pitch_angle
 {
   double p_accel = 0.0, dp_gyro = 0.0, dT = 0.02;
   double alpha = 0.98; // To tune
-  p_accel = atan2(msg.linear_acceleration.z, msg.linear_acceleration.x) - 0.205; // radian
+  p_accel = atan2(msg.linear_acceleration.z, msg.linear_acceleration.x) - 0.179; // radian
   dp_gyro = msg.angular_velocity.y;
 
   // Implement the complementary filter logic
