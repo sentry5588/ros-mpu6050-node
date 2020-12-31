@@ -8,6 +8,9 @@ const int I2C_ADDR = 0x68;
 const int PWR_MGMT_1 = 0x6B;
 
 double Y_ANGULAR_BIAS = 0.0;
+double PITCH_BIAS = 0.0;
+double CONTROL_LOOP_TIME = 0.01;
+double CF_ALPHA = 0.9;
 
 float read_word_2c(int fd, int addr)
 {
@@ -19,6 +22,10 @@ float read_word_2c(int fd, int addr)
 
 void obtain_sensor_calibrations(const ros::NodeHandle &n) {
   n.getParam("/y_angular_bias", Y_ANGULAR_BIAS);
+  n.getParam("/control_loop_time", CONTROL_LOOP_TIME);
+  n.getParam("/pitch_bias", PITCH_BIAS);
+  n.getParam("/CF_alpha", CF_ALPHA);
+  ROS_INFO_STREAM("control_loop_time is read as: " << CONTROL_LOOP_TIME);
 }
 
 void populate_raw_imu(sensor_msgs::Imu &m, int fd)
@@ -46,13 +53,12 @@ void calibrate_imu(sensor_msgs::Imu &m)
 
 void pitch_complementary_filter(const sensor_msgs::Imu& msg, double& pitch_angle)
 {
-  double p_accel = 0.0, dp_gyro = 0.0, dT = 0.02;
-  double alpha = 0.98; // To tune
-  p_accel = atan2(msg.linear_acceleration.z, msg.linear_acceleration.x) - 0.179; // radian
+  double p_accel = 0.0, dp_gyro = 0.0;
+  p_accel = atan2(msg.linear_acceleration.z, msg.linear_acceleration.x) + PITCH_BIAS; // radian
   dp_gyro = msg.angular_velocity.y;
 
   // Implement the complementary filter logic
-  pitch_angle = (1-alpha) * p_accel + alpha * (pitch_angle + dp_gyro * dT);
+  pitch_angle = (1-CF_ALPHA) * p_accel + CF_ALPHA * (pitch_angle + dp_gyro * CONTROL_LOOP_TIME);
 }
 
 int main(int argc, char **argv)
@@ -73,7 +79,7 @@ int main(int argc, char **argv)
   ros::init(argc, argv, "mpu6050_node");
   ros::NodeHandle node;
   ros::Publisher pitch_angle_pub = node.advertise<std_msgs::Float32>("pitch_angle", 10);
-  ros::Rate rate(50); // hz
+  ros::Rate rate(100); // hz
 
   obtain_sensor_calibrations(node);
 

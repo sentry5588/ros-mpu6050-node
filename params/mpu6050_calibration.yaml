@@ -9,3 +9,9 @@ z_angular_bias: 0.0
 x_accel_bias: 0.0
 y_accel_bias: 0.0
 z_accel_bias: 0.0
+# Angular position bias (rad)
+pitch_bias: -0.192
+roll_bias: 0.0
+yaw_bias: 0.0
+# Pitch angle complementary filter factor
+CF_alpha: 0.993
